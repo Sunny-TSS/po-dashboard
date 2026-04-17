@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PO Command Center · The Shipping Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:              #ffffff;
+    --bg-elev:         #fafafa;
+    --bg-elev-2:       #f3f4f6;
+    --border:          #e5e7eb;
+    --border-strong:   #d1d5db;
+    --text:            #111827;
+    --text-muted:      #4b5563;
+    --text-dim:        #9ca3af;
+    --accent:          #0f172a;     /* deep ink for strong contrast on white */
+    --accent-dim:      #475569;
+    --accent-bright:   #2563eb;     /* used for highlights and active states */
+    --ok:              #059669;
+    --warn:            #d97706;
+    --bad:             #dc2626;
+    --info:            #2563eb;
+    --violet:          #7c3aed;
+    --mono:            "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    --sans:            "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+    --serif:           "Instrument Serif", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.04), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(124, 58, 237, 0.03), transparent 40%);
+    background-attachment: fixed;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .header-inner {
+    max-width: 1600px; margin: 0 auto;
+    padding: 18px 32px;
+    display: flex; align-items: center; gap: 32px;
+  }
+  .brand {
+    display: flex; align-items: baseline; gap: 14px;
+  }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border: 1.5px solid var(--accent-bright);
+    border-radius: 4px;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 700;
+    color: var(--accent-bright); font-size: 13px;
+    transform: translateY(4px);
+    position: relative;
+  }
+  .brand-mark::after {
+    content: ""; position: absolute; inset: -4px;
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    border-radius: 6px;
+  }
+  .brand-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .brand-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-left: 2px;
+  }
+  nav.tabs {
+    display: flex; gap: 4px; margin-left: auto;
+  }
+  nav.tabs button {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-muted);
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all .15s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  nav.tabs button:hover { color: var(--text); background: var(--bg-elev); }
+  nav.tabs button.active {
+    color: #ffffff;
+    background: var(--accent);
+  }
+  nav.tabs button .icon { font-size: 14px; }
+
+  .status-pill {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .status-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ok); animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(5, 150, 105, 0); }
+  }
+
+  /* ─── MAIN ─── */
+  main {
+    max-width: 1600px; margin: 0 auto;
+    padding: 32px;
+  }
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ─── LOADING & ERROR ─── */
+  .loading-screen, .error-screen {
+    display: grid; place-items: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 40px;
+  }
+  .loading-screen .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-screen h3, .error-screen h3 {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    margin-bottom: 8px;
+  }
+  .loading-screen p, .error-screen p {
+    color: var(--text-muted); font-size: 13px;
+    font-family: var(--mono);
+  }
+  .error-screen {
+    color: var(--bad);
+  }
+  .error-screen .err-detail {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--bg-elev); padding: 16px; border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--text-muted); margin-top: 16px;
+    max-width: 600px;
+    text-align: left; word-break: break-all;
+  }
+
+  /* ─── KPI CARDS ─── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .kpi {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .kpi:hover { border-color: var(--border-strong); }
+  .kpi .label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .kpi .value {
+    font-family: var(--mono); font-weight: 600;
+    font-size: 36px; line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .kpi .sub {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-muted); margin-top: 6px;
+  }
+  .kpi::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--accent);
+  }
+  .kpi.ok::before { background: var(--ok); }
+  .kpi.warn::before { background: var(--warn); }
+  .kpi.bad::before { background: var(--bad); }
+  .kpi.info::before { background: var(--info); }
+
+  /* ─── SECTION ─── */
+  .section {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-head h2 {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .section-head .meta {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Two-col grid for overview */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 1100px) { .overview-grid { grid-template-columns: 1fr; } }
+
+  /* ─── TABLES ─── */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--mono); font-size: 12px;
+  }
+  th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    position: sticky; top: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th.sort-asc::after { content: " ↑"; color: var(--accent); }
+  th.sort-desc::after { content: " ↓"; color: var(--accent); }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(35, 41, 50, 0.5);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(0,0,0,0.025); }
+  .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+  .table-wrap table { min-width: 900px; }
+
+  /* ─── BADGES ─── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: var(--mono); font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge.closed    { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+  .badge.arrived   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+  .badge.transit   { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+  .badge.working   { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+  .badge.delayed   { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+  .market-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.08em;
+    border-radius: 3px;
+    background: var(--bg-elev-2); color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .market-chip.us  { color: #1e40af; border-color: #bfdbfe; background: #eff6ff; }
+  .market-chip.ca  { color: #991b1b; border-color: #fecaca; background: #fef2f2; }
+  .market-chip.uk  { color: #5b21b6; border-color: #ddd6fe; background: #f5f3ff; }
+  .market-chip.de  { color: #92400e; border-color: #fde68a; background: #fffbeb; }
+  .market-chip.smp { color: #065f46; border-color: #a7f3d0; background: #ecfdf5; }
+  .market-chip.awd { color: #0f172a; border-color: #cbd5e1; background: #f1f5f9; }
+
+  /* Program chip — shown next to market chip, orthogonal classification */
+  .program-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.08em;
+    border-radius: 3px;
+    background: var(--bg-elev-2); color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .program-chip.awd { color: #7c2d12; background: #fff7ed; border-color: #fed7aa; }
+  .program-chip.smp { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+  .program-chip.fcl { color: #1e3a8a; background: #eff6ff; border-color: #bfdbfe; }
+  .program-chip.lcl { color: #3730a3; background: #eef2ff; border-color: #c7d2fe; }
+
+  /* ─── FILTERS ─── */
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .filters label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-dim); letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .filters select, .filters input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono); font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .filters select:focus, .filters input:focus {
+    border-color: var(--accent);
+  }
+  .filters input[type="text"] { min-width: 220px; }
+  .filter-clear {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-muted); cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+    padding: 6px 10px; border-radius: 4px;
+    margin-left: auto;
+  }
+  .filter-clear:hover { color: var(--text); border-color: var(--border-strong); }
+
+  /* ─── VENDOR BARS ─── */
+  .vendor-bars { display: flex; flex-direction: column; gap: 10px; }
+  .vendor-row { display: grid; grid-template-columns: 130px 1fr 40px; gap: 12px; align-items: center; font-family: var(--mono); font-size: 12px; }
+  .vendor-row .name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vendor-row .bar-track { height: 8px; background: var(--bg-elev-2); border-radius: 2px; overflow: hidden; }
+  .vendor-row .bar-fill { height: 100%; background: linear-gradient(90deg, #64748b, #0f172a); transition: width .4s ease; }
+  .vendor-row .count { color: var(--text-muted); text-align: right; font-size: 11px; }
+
+  /* ─── TIMELINE ─── */
+  .timeline-months {
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .month-block {
+    border-left: 2px solid var(--border);
+    padding-left: 20px;
+    position: relative;
+  }
+  .month-block::before {
+    content: ""; position: absolute; left: -5px; top: 4px;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .month-header {
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex; gap: 14px; align-items: baseline;
+  }
+  .month-header .mo-name {
+    font-family: var(--serif); font-size: 20px;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: -0.01em;
+  }
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+  }
+  .po-card {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 12px;
+    font-family: var(--mono); font-size: 11px;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+  }
+  .po-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .po-card .po-num {
+    font-weight: 600; color: var(--text);
+    margin-bottom: 4px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .po-card .po-meta {
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  .po-card .po-meta strong { color: var(--text); font-weight: 500; }
+
+  /* ─── SKU LOOKUP ─── */
+  .sku-search-box {
+    display: flex; gap: 0;
+    margin-bottom: 24px;
+    max-width: 700px;
+  }
+  .sku-search-box input {
+    flex: 1;
+    padding: 14px 18px;
+    font-family: var(--mono); font-size: 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px 0 0 6px;
+    color: var(--text);
+    outline: none;
+    border-right: none;
+    transition: border-color .15s;
+  }
+  .sku-search-box input:focus {
+    border-color: var(--accent);
+  }
+  .sku-search-box button {
+    padding: 14px 24px;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+  }
+  .sku-search-box button:hover { background: #1e293b; }
+
+  .sku-suggestions {
+    margin-top: 8px;
+    max-height: 200px; overflow-y: auto;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: none;
+  }
+  .sku-suggestions.visible { display: block; }
+  .sku-suggestions div {
+    padding: 8px 14px;
+    font-family: var(--mono); font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .sku-suggestions div:hover { background: var(--bg-elev-2); color: var(--accent-bright); }
+  .sku-suggestions div:last-child { border-bottom: none; }
+
+  .sku-result-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .sku-result-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    margin-bottom: 16px; gap: 20px;
+  }
+  .sku-result-header h3 {
+    font-family: var(--mono); font-size: 18px; font-weight: 600;
+    color: var(--accent-bright);
+    letter-spacing: -0.01em;
+  }
+  .sku-result-header .desc {
+    color: var(--text-muted); font-size: 12px;
+    font-family: var(--sans);
+    margin-top: 4px;
+  }
+  .sku-result-header .count-badge {
+    font-family: var(--mono); font-size: 11px;
+    padding: 6px 12px; border-radius: 4px;
+    background: #eff6ff;
+    color: var(--accent-bright);
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+  }
+
+  .sku-summary-row {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--bg-elev-2);
+    border-radius: 6px;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .sku-summary-row .stat { display: flex; flex-direction: column; gap: 2px; }
+  .sku-summary-row .stat .k { color: var(--text-dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .sku-summary-row .stat .v { color: var(--text); font-size: 14px; font-weight: 500; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .big {
+    font-family: var(--serif); font-size: 28px;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .empty-state .small { font-family: var(--mono); font-size: 12px; }
+
+  /* ─── CHART FILTER CHIPS ─── */
+  .chart-filters {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-bottom: 16px;
+  }
+  .chart-filters button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chart-filters button:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .chart-filters button.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+  }
+
+  /* Canvas interactivity hint */
+  #etaChart { cursor: pointer; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    display: none;
+    z-index: 100;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-overlay.visible { display: block; }
+  .modal {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+    position: relative;
+  }
+  /* Slightly tighter SKU table inside the PO modal so everything fits without horizontal scroll */
+  #modalSkuTable { min-width: 0; table-layout: auto; }
+  #modalSkuTable th, #modalSkuTable td { white-space: nowrap; }
+  #modalSkuTable td:nth-child(2) { white-space: normal; }  /* let description wrap */
+  #modalSkuWrap { overflow-x: auto; }
+  .modal .close-btn {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none;
+    color: var(--text-muted); font-size: 20px;
+    cursor: pointer;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+  }
+  .modal .close-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+  .modal-head {
+    margin-bottom: 20px;
+  }
+  .modal-head h2 {
+    font-family: var(--serif); font-size: 28px; font-weight: 400;
+    margin-bottom: 8px;
+  }
+  .modal-head .sub {
+    color: var(--text-muted); font-family: var(--mono); font-size: 12px;
+  }
+  .modal-details {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+    padding: 16px;
+    background: var(--bg-elev-2);
+    border-radius: 6px;
+  }
+  .modal-details .item { font-family: var(--mono); font-size: 12px; }
+  .modal-details .item .k { color: var(--text-dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .modal-details .item .v { color: var(--text); font-size: 13px; word-break: break-all; }
+
+  /* Chart */
+  .chart-wrap { position: relative; height: 260px; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 40px 20px 24px;
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  footer a { color: var(--text-muted); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg-elev-2); }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <div class="brand-title">Command Center</div>
+        <div class="brand-sub">PO Operations · The Shipping Store</div>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="active" data-view="overview"><span class="icon">📊</span>Overview</button>
+      <button data-view="timeline"><span class="icon">📅</span>Timeline</button>
+      <button data-view="table"><span class="icon">📋</span>All POs</button>
+      <button data-view="sku"><span class="icon">🔍</span>SKU Lookup</button>
+    </nav>
+    <div class="status-pill" id="statusPill">
+      <span class="dot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="loading" class="loading-screen">
+    <div class="spinner"></div>
+    <h3>Loading PO data</h3>
+    <p>Fetching from Google Sheets endpoint</p>
+  </div>
+
+  <div id="error" class="error-screen" style="display:none;">
+    <h3>Could not load data</h3>
+    <p>The dashboard couldn't reach the Google Sheets endpoint.</p>
+    <div class="err-detail" id="errDetail"></div>
+    <p style="margin-top:16px;color:var(--text-muted);">Check that the Apps Script is deployed and the URL is correct. Then refresh the page.</p>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section class="view" id="view-overview">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="overview-grid">
+      <div class="section">
+        <div class="section-head">
+          <h2>ETA by month</h2>
+          <div class="meta" id="chartMeta">All markets · click a bar</div>
+        </div>
+        <div class="chart-filters" id="chartFilters">
+          <button class="active" data-mkt="">All</button>
+          <button data-mkt="US">US</button>
+          <button data-mkt="CA">CA</button>
+          <button data-mkt="UK">UK</button>
+          <button data-mkt="DE">DE</button>
+        </div>
+        <div class="chart-wrap"><canvas id="etaChart"></canvas></div>
+      </div>
+      <div class="section">
+        <div class="section-head">
+          <h2>Vendors</h2>
+          <div class="meta" id="vendorMeta">—</div>
+        </div>
+        <div class="vendor-bars" id="vendorBars"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head">
+        <h2>Upcoming ETAs</h2>
+        <div class="meta">Next 30 days</div>
+      </div>
+      <div class="table-wrap">
+        <table id="upcomingEtaTable">
+          <thead><tr><th>PO</th><th>Vendor</th><th>ETA</th><th>Days</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="view" id="view-timeline">
+    <div class="section">
+      <div class="section-head">
+        <h2>Timeline — ETA by month</h2>
+        <div class="meta" id="timelineCount">—</div>
+      </div>
+      <div class="filters">
+        <label>Market
+          <select id="tl-market"><option value="">All</option><option>US</option><option>CA</option><option>UK</option><option>DE</option></select>
+        </label>
+        <label>Status
+          <select id="tl-status"><option value="">All</option><option>Working</option><option>In Transit</option><option>Arrived</option><option>Closed</option><option>Delayed</option></select>
+        </label>
+        <label>Vendor
+          <select id="tl-vendor"><option value="">All</option></select>
+        </label>
+        <button class="filter-clear" id="tl-clear">Clear</button>
+      </div>
+      <div class="timeline-months" id="timelineMonths"></div>
+    </div>
+  </section>
+
+  <!-- ALL POs TABLE -->
+  <section class="view" id="view-table">
+    <div class="section">
+      <div class="section-head">
+        <h2>All Purchase Orders</h2>
+        <div class="meta" id="tableCount">—</div>
+      </div>
+      <div class="filters">
+        <label>Search
+          <input type="text" id="tbl-search" placeholder="PO, vendor, note, shipment ID…" />
+        </label>
+        <label>Market
+          <select id="tbl-market"><option value="">All</option><option>US</option><option>CA</option><option>UK</option><option>DE</option></select>
+        </label>
+        <label>Status
+          <select id="tbl-status"><option value="">All</option><option>Working</option><option>In Transit</option><option>Arrived</option><option>Closed</option><option>Delayed</option></select>
+        </label>
+        <label>Vendor
+          <select id="tbl-vendor"><option value="">All</option></select>
+        </label>
+        <button class="filter-clear" id="tbl-clear">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <table id="allTable">
+          <thead><tr>
+            <th data-sort="po">PO</th>
+            <th data-sort="market">Mkt</th>
+            <th data-sort="program">Program</th>
+            <th data-sort="status">Status</th>
+            <th data-sort="vendor">Vendor</th>
+            <th data-sort="cargo">Cargo Ready</th>
+            <th data-sort="eta">ETA</th>
+            <th data-sort="isa">ISA Closure</th>
+            <th data-sort="shipment">Shipment ID</th>
+            <th data-sort="note">Note</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SKU LOOKUP -->
+  <section class="view" id="view-sku">
+    <div class="section">
+      <div class="section-head">
+        <h2>SKU Lookup</h2>
+        <div class="meta" id="skuTotalCount">—</div>
+      </div>
+      <div class="sku-search-box">
+        <input type="text" id="sku-input" placeholder="Type any SKU or description…" autocomplete="off" />
+        <button id="sku-search-btn">Search</button>
+      </div>
+      <div class="sku-suggestions" id="sku-suggestions"></div>
+      <div id="sku-results" style="margin-top: 24px;"></div>
+    </div>
+  </section>
+
+  <footer>
+    Last refresh <span id="refreshTime">—</span> · <a href="#" id="refreshBtn">Refresh data</a>
+  </footer>
+</main>
+
+<!-- PO Detail Modal -->
+<div class="modal-overlay" id="poModal">
+  <div class="modal">
+    <button class="close-btn" id="modalClose">✕</button>
+    <div class="modal-head">
+      <h2 id="modalPo">—</h2>
+      <div class="sub" id="modalSub">—</div>
+    </div>
+    <div class="modal-details" id="modalDetails"></div>
+    <div>
+      <div class="section-head" style="margin-bottom: 12px; padding-bottom: 10px;">
+        <h2 style="font-size: 16px;">SKUs on this PO</h2>
+        <div class="meta" id="modalSkuCount">—</div>
+      </div>
+      <div class="table-wrap" id="modalSkuWrap">
+        <table id="modalSkuTable">
+          <thead><tr><th>SKU</th><th>Description</th><th>Units/Case</th><th>Cases</th><th>Units</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Month detail popup -->
+<div class="modal-overlay" id="monthModal">
+  <div class="modal">
+    <button class="close-btn" id="monthModalClose">✕</button>
+    <div class="modal-head">
+      <h2 id="monthModalTitle">—</h2>
+      <div class="sub" id="monthModalSub">—</div>
+    </div>
+    <div class="table-wrap">
+      <table id="monthPoTable">
+        <thead><tr><th>PO</th><th>Mkt</th><th>Status</th><th>Vendor</th><th>ETA</th><th>ISA Closure</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const API_URL = "https://script.google.com/macros/s/AKfycbyVRDf6JgwH_Hsy6270cvjRq1WM4Py6idpoAYA9wyt20KkCeXgrhnS7h01MupVHO0JpgQ/exec";
+const MASTER_TAB = "POs on order";
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let ALL_DATA = null;      // raw response keyed by tab name
+let POs = [];             // processed PO records
+let SKU_INDEX = {};       // sku -> [{po, item, unitsPerCase, cases, units}]
+let ALL_SKUS = [];        // flat list for suggestions
+let etaChart = null;
+let tableSort = { key: "po", dir: "asc" };
+let chartMarket = "";  // active filter for ETA chart; "" = all markets
+let chartKeys = [];    // keeps month keys in sorted order for click-to-popup lookup
+
+// ═══════════════════════════════════════════════════════════════════
+// UTIL
+// ═══════════════════════════════════════════════════════════════════
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function fmtDate(d) {
+  if (!d) return "—";
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(dt)) return "—";
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtDateShort(d) {
+  if (!d) return "—";
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(dt)) return "—";
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function parseD(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+function daysBetween(a, b) {
+  if (!a || !b) return null;
+  return Math.round((a - b) / 86400000);
+}
+// Market = destination marketplace only (where goods end up)
+function parseMarket(po) {
+  const s = String(po);
+  if (/-CA\b/i.test(s)) return "CA";
+  if (/-UK\b/i.test(s)) return "UK";
+  if (/-DE\b/i.test(s)) return "DE";
+  return "US";
+}
+// Program = fulfillment / freight program (orthogonal to market).
+// A PO can have one of these, or none. Returns empty string if not tagged.
+function parseProgram(po) {
+  const s = String(po);
+  if (/\bAWD\b/i.test(s)) return "AWD";
+  if (/\bSMP\b/i.test(s)) return "SMP";
+  if (/\bFCL\b/i.test(s)) return "FCL";
+  if (/\bLCL\b/i.test(s)) return "LCL";
+  return "";
+}
+// Primary status is ALWAYS date-based (no longer overridden by delay note).
+// Delay flag is a separate signal derived from the note field.
+function inferStatus(row, today) {
+  const isa = row.isa, eta = row.eta, cargo = row.cargo;
+  if (isa && isa < today) return "Closed";
+  if (eta && eta < today) return "Arrived";
+  if (cargo && cargo < today) return "In Transit";
+  return "Working";
+}
+function isDelayed(row) {
+  return (row.note || "").toLowerCase().includes("delay");
+}
+function statusClass(s) {
+  return ({"Closed":"closed","Arrived":"arrived","In Transit":"transit","Working":"working","Delayed":"delayed"})[s] || "working";
+}
+// Render the full status badge(s) for a PO: primary status plus optional delay tag.
+// If the delay is historical (primary is Closed/Arrived), tag reads "Was Delayed".
+function statusBadges(po) {
+  const primary = `<span class="badge ${statusClass(po.status)}">${po.status}</span>`;
+  if (!po.isDelayed) return primary;
+  const historical = po.status === "Closed" || po.status === "Arrived";
+  const delayLabel = historical ? "Was Delayed" : "Delayed";
+  return `${primary} <span class="badge delayed" title="${esc(po.note || '')}">${delayLabel}</span>`;
+}
+function marketClass(m) { return m.toLowerCase().replace("-","").replace("us",""); }
+function programChip(p) {
+  if (!p || !p.program) return '';
+  return ` <span class="program-chip ${p.program.toLowerCase()}">${p.program}</span>`;
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════════════════
+async function loadData() {
+  $("#loading").style.display = "grid";
+  $("#error").style.display = "none";
+  $$(".view").forEach(v => v.classList.remove("active"));
+  $("#statusText").textContent = "Connecting…";
+
+  try {
+    const res = await fetch(API_URL, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    ALL_DATA = json;
+    processData();
+    $("#loading").style.display = "none";
+    $("#view-overview").classList.add("active");
+    $("#statusText").textContent = "Live";
+    $("#refreshTime").textContent = new Date().toLocaleTimeString();
+  } catch (err) {
+    $("#loading").style.display = "none";
+    $("#error").style.display = "grid";
+    $("#errDetail").textContent = err.message + "\n\nURL: " + API_URL;
+    $("#statusText").textContent = "Error";
+    console.error(err);
+  }
+}
+
+// Find the SKU-detail tab for a given PO name using fuzzy matching.
+// Returns { tab, tabName } or null.
+// Master PO names can differ from tab names in small ways:
+//   master "PO601-3rd"        ↔ tab "PO 601-3rd"       (space)
+//   master "PO601-3rd"        ↔ tab "PO 601-3rd(SMP)"  (suffix)
+//   master "PO594 -1(FCL)"    ↔ tab "PO594 -1(FCL)"    (exact w/ space)
+//   master "PO518+PO533-CA"   ↔ tab "PO518+PO533-CA"   (exact)
+function findPoTab(poName) {
+  if (!poName) return null;
+  // 1. Exact match
+  if (ALL_DATA[poName] && ALL_DATA[poName].length > 1) {
+    return { tab: ALL_DATA[poName], tabName: poName };
+  }
+  // Build a normalized key for comparison: remove spaces, lowercase
+  const norm = s => String(s).replace(/\s+/g,"").toLowerCase();
+  const target = norm(poName);
+  // 2. Whitespace / case-insensitive match
+  for (const name in ALL_DATA) {
+    if (norm(name) === target && ALL_DATA[name].length > 1) {
+      return { tab: ALL_DATA[name], tabName: name };
+    }
+  }
+  // 3. Strip common market suffixes from both sides and compare
+  //    e.g. "PO601-3rd" ↔ "PO 601-3rd(SMP)" — strip "(SMP)", "(AWD)", etc.
+  const stripSuffix = s => norm(s)
+    .replace(/\([^)]*\)/g, "")     // remove (SMP), (AWD), (FCL), etc.
+    .replace(/-(ca|uk|de)$/i, ""); // remove -CA/-UK/-DE market suffix
+  const targetStripped = stripSuffix(poName);
+  for (const name in ALL_DATA) {
+    if (stripSuffix(name) === targetStripped && ALL_DATA[name].length > 1) {
+      return { tab: ALL_DATA[name], tabName: name };
+    }
+  }
+  // 4. Extract the PO number token and try to match any tab containing it
+  //    e.g. master "PO601-3rd" → try tabs whose stripped name starts with "po601-3rd"
+  for (const name in ALL_DATA) {
+    if (name === MASTER_TAB) continue;
+    if (stripSuffix(name).startsWith(targetStripped) && ALL_DATA[name].length > 1) {
+      return { tab: ALL_DATA[name], tabName: name };
+    }
+  }
+  return null;
+}
+
+function processData() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Master tab
+  const master = ALL_DATA[MASTER_TAB];
+  if (!master || master.length < 2) {
+    throw new Error(`Master tab "${MASTER_TAB}" not found or empty`);
+  }
+
+  // Header row index map
+  const headers = master[0].map(h => String(h || "").toLowerCase().trim());
+  const idx = {
+    po: headers.indexOf("po"),
+    vendor: headers.indexOf("vendor"),
+    cargo: headers.indexOf("cargo ready date"),
+    shipment: headers.indexOf("shipment id"),
+    alo: headers.indexOf("alo id"),
+    window: headers.indexOf("estimate delivery window"),
+    eta: headers.indexOf("eta"),
+    isa: headers.indexOf("isa_closure date"),
+    note: headers.indexOf("note"),
+  };
+
+  POs = [];
+  for (let i = 1; i < master.length; i++) {
+    const r = master[i];
+    if (!r || !r[idx.po]) continue;
+    const poName = String(r[idx.po]).trim();
+    if (!poName) continue;
+    const rec = {
+      po: poName,
+      vendor: String(r[idx.vendor] || "").trim() || "—",
+      cargo: parseD(r[idx.cargo]),
+      shipment: String(r[idx.shipment] || "").trim(),
+      alo: String(r[idx.alo] || "").trim(),
+      window: parseD(r[idx.window]),
+      eta: parseD(r[idx.eta]),
+      isa: parseD(r[idx.isa]),
+      note: String(r[idx.note] || "").trim(),
+    };
+    rec.market = parseMarket(poName);
+    rec.program = parseProgram(poName);
+    rec.status = inferStatus(rec, today);
+    rec.isDelayed = isDelayed(rec);
+    POs.push(rec);
+  }
+
+  // Build SKU index from individual PO tabs
+  SKU_INDEX = {};
+  ALL_SKUS = [];
+  const skuSet = new Set();
+
+  POs.forEach(po => {
+    const found = findPoTab(po.po);
+    if (!found) return;
+    const tab = found.tab;
+    // Remember the matched tab name on the PO record so the modal can reuse it
+    po._tabName = found.tabName;
+    const h = tab[0].map(x => String(x || "").toLowerCase().trim());
+    const si = h.indexOf("sku");
+    const ii = h.findIndex(x => x.includes("item"));
+    const upc = h.indexOf("units per case");
+    const ci = h.indexOf("cases");
+    const qi = h.indexOf("case qty");
+    const ui = h.indexOf("units");
+    if (si === -1) return;
+    for (let r = 1; r < tab.length; r++) {
+      const row = tab[r];
+      if (!row || !row[si]) continue;
+      const sku = String(row[si]).trim();
+      if (!sku || sku.toLowerCase() === "sku") continue;
+      const entry = {
+        sku: sku,
+        po: po.po,
+        item: ii >= 0 ? String(row[ii] || "").trim() : "",
+        unitsPerCase: upc >= 0 ? row[upc] : "",
+        cases: ci >= 0 ? row[ci] : (qi >= 0 ? row[qi] : ""),
+        units: ui >= 0 ? row[ui] : "",
+      };
+      if (!SKU_INDEX[sku]) SKU_INDEX[sku] = [];
+      SKU_INDEX[sku].push(entry);
+      if (!skuSet.has(sku)) {
+        skuSet.add(sku);
+        ALL_SKUS.push({ sku, item: entry.item });
+      }
+    }
+  });
+
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDERING — KPIs & CHART
+// ═══════════════════════════════════════════════════════════════════
+function renderKpis() {
+  const total = POs.length;
+  const byStatus = {};
+  POs.forEach(p => byStatus[p.status] = (byStatus[p.status] || 0) + 1);
+  // Separate delay counts: active (not yet arrived) vs historical (already closed/arrived)
+  const delayedTotal = POs.filter(p => p.isDelayed).length;
+  const delayedActive = POs.filter(p => p.isDelayed && p.status !== "Closed" && p.status !== "Arrived").length;
+  const delayedHist = delayedTotal - delayedActive;
+
+  const kpis = [
+    { label: "Total POs",   value: total,                    sub: `${new Set(POs.map(p=>p.vendor)).size} vendors`, cls: "" },
+    { label: "Working",     value: byStatus["Working"]||0,   sub: "awaiting cargo ready", cls: "" },
+    { label: "In Transit",  value: byStatus["In Transit"]||0,sub: "en route", cls: "info" },
+    { label: "Arrived",     value: byStatus["Arrived"]||0,   sub: "pending ISA closure", cls: "ok" },
+    { label: "Closed",      value: byStatus["Closed"]||0,    sub: "ISA completed", cls: "ok" },
+    { label: "Delayed",     value: delayedTotal,             sub: `${delayedActive} active · ${delayedHist} historical`, cls: "bad" },
+  ];
+  $("#kpiGrid").innerHTML = kpis.map(k => `
+    <div class="kpi ${k.cls}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      <div class="sub">${k.sub}</div>
+    </div>`).join("");
+}
+
+function renderEtaChart() {
+  const poolAll = chartMarket ? POs.filter(p => p.market === chartMarket) : POs;
+  const months = {};
+  poolAll.forEach(p => {
+    if (!p.eta) return;
+    const key = p.eta.getFullYear() + "-" + String(p.eta.getMonth()+1).padStart(2,'0');
+    months[key] = (months[key] || 0) + 1;
+  });
+  const keys = Object.keys(months).sort();
+  chartKeys = keys;  // save for click handler
+  const labels = keys.map(k => {
+    const [y,m] = k.split("-");
+    return new Date(+y, +m-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  });
+  const vals = keys.map(k => months[k]);
+
+  // Meta label
+  const marketLabel = chartMarket || "All markets";
+  $("#chartMeta").textContent = `${marketLabel} · ${poolAll.length} POs · click a bar`;
+
+  const ctx = document.getElementById('etaChart').getContext('2d');
+  if (etaChart) etaChart.destroy();
+
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const accentDim = getComputedStyle(document.documentElement).getPropertyValue('--accent-dim').trim();
+  const textMuted = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+  const border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+
+  // Identify "current month" bar for visual emphasis
+  const now = new Date();
+  const currentMonthIdx = keys.findIndex(k => {
+    const [y,m] = k.split("-");
+    return +y === now.getFullYear() && +m-1 === now.getMonth();
+  });
+
+  etaChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        backgroundColor: vals.map((_,i) => i === currentMonthIdx ? accent : accentDim),
+        hoverBackgroundColor: accent,
+        borderRadius: 2,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onHover: (evt, items) => {
+        evt.native.target.style.cursor = items.length ? 'pointer' : 'default';
+      },
+      onClick: (evt, items) => {
+        if (!items.length) return;
+        const idx = items[0].index;
+        openMonthModal(chartKeys[idx]);
+      },
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderWidth: 1,
+        titleColor: '#111827', bodyColor: '#111827',
+        titleFont: { family: 'JetBrains Mono', size: 11 },
+        bodyFont: { family: 'JetBrains Mono', size: 12 },
+        padding: 10, displayColors: false,
+        callbacks: {
+          label: (ctx) => `${ctx.parsed.y} PO${ctx.parsed.y===1?'':'s'} · click for details`
+        }
+      }},
+      scales: {
+        x: {
+          ticks: { color: textMuted, font: { family: 'JetBrains Mono', size: 10 } },
+          grid: { display: false },
+          border: { color: border }
+        },
+        y: {
+          ticks: { color: textMuted, font: { family: 'JetBrains Mono', size: 10 }, stepSize: 1 },
+          grid: { color: border, drawBorder: false },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderVendorBars() {
+  const vendors = {};
+  POs.forEach(p => vendors[p.vendor] = (vendors[p.vendor] || 0) + 1);
+  const sorted = Object.entries(vendors).sort((a,b) => b[1] - a[1]).slice(0, 10);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  $("#vendorMeta").textContent = `${Object.keys(vendors).length} total`;
+  $("#vendorBars").innerHTML = sorted.map(([v, c]) => `
+    <div class="vendor-row">
+      <div class="name" title="${esc(v)}">${esc(v)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width: ${(c/max)*100}%"></div></div>
+      <div class="count">${c}</div>
+    </div>`).join("");
+}
+
+function renderUpcoming() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 30);
+
+  const etaUp = POs.filter(p => p.eta && p.eta >= today && p.eta <= horizon)
+    .sort((a,b) => a.eta - b.eta).slice(0, 12);
+  $("#upcomingEtaTable tbody").innerHTML = etaUp.length ? etaUp.map(p => `
+    <tr onclick="openPoModal('${esc(p.po)}')" style="cursor:pointer;">
+      <td><strong>${esc(p.po)}</strong> <span class="market-chip ${marketClass(p.market)}">${p.market}</span>${programChip(p)}</td>
+      <td>${esc(p.vendor)}</td>
+      <td>${fmtDateShort(p.eta)}</td>
+      <td style="color:var(--text-muted);">${daysBetween(p.eta, today)}d</td>
+    </tr>`).join("") : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">No upcoming ETAs in next 30 days</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TIMELINE VIEW
+// ═══════════════════════════════════════════════════════════════════
+function renderTimeline() {
+  const marketF = $("#tl-market").value;
+  const statusF = $("#tl-status").value;
+  const vendorF = $("#tl-vendor").value;
+
+  const filtered = POs.filter(p =>
+    (!marketF || p.market === marketF) &&
+    (!statusF || (statusF === "Delayed" ? p.isDelayed : p.status === statusF)) &&
+    (!vendorF || p.vendor === vendorF)
+  );
+
+  const months = {};
+  filtered.forEach(p => {
+    if (!p.eta) return;
+    const key = p.eta.getFullYear() + "-" + String(p.eta.getMonth()+1).padStart(2,'0');
+    if (!months[key]) months[key] = [];
+    months[key].push(p);
+  });
+
+  const keys = Object.keys(months).sort();
+  $("#timelineCount").textContent = `${filtered.length} POs`;
+
+  if (keys.length === 0) {
+    $("#timelineMonths").innerHTML = `<div class="empty-state"><div class="big">No matches</div><div class="small">Adjust filters above</div></div>`;
+    return;
+  }
+
+  $("#timelineMonths").innerHTML = keys.map(k => {
+    const [y,m] = k.split("-");
+    const monthName = new Date(+y, +m-1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const items = months[k].sort((a,b) => a.eta - b.eta);
+    return `
+      <div class="month-block">
+        <div class="month-header">
+          <span class="mo-name">${monthName}</span>
+          <span>${items.length} PO${items.length===1?'':'s'}</span>
+        </div>
+        <div class="month-grid">
+          ${items.map(p => `
+            <div class="po-card" onclick="openPoModal('${esc(p.po)}')">
+              <div class="po-num">
+                <span>${esc(p.po)}</span>
+                <span>
+                  <span class="market-chip ${marketClass(p.market)}">${p.market}</span>${programChip(p)}
+                </span>
+              </div>
+              <div class="po-meta">
+                <div><strong>${esc(p.vendor)}</strong></div>
+                <div>ETA ${fmtDateShort(p.eta)} · <span class="badge ${statusClass(p.status)}" style="font-size:9px;padding:1px 5px;">${p.status}</span>${p.isDelayed ? ` <span class="badge delayed" style="font-size:9px;padding:1px 5px;" title="${esc(p.note||'')}">${p.status === 'Closed' || p.status === 'Arrived' ? 'WAS' : ''} DELAYED</span>` : ''}</div>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ALL POs TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderTable() {
+  const q = $("#tbl-search").value.trim().toLowerCase();
+  const marketF = $("#tbl-market").value;
+  const statusF = $("#tbl-status").value;
+  const vendorF = $("#tbl-vendor").value;
+
+  let filtered = POs.filter(p => {
+    if (marketF && p.market !== marketF) return false;
+    if (statusF) {
+      if (statusF === "Delayed") { if (!p.isDelayed) return false; }
+      else if (p.status !== statusF) return false;
+    }
+    if (vendorF && p.vendor !== vendorF) return false;
+    if (q) {
+      const hay = [p.po, p.vendor, p.note, p.shipment, p.alo].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const dir = tableSort.dir === "asc" ? 1 : -1;
+  const key = tableSort.key;
+  filtered.sort((a,b) => {
+    let va, vb;
+    if (key === "cargo" || key === "eta" || key === "isa") {
+      va = a[key] ? a[key].getTime() : Infinity;
+      vb = b[key] ? b[key].getTime() : Infinity;
+    } else {
+      va = String(a[key] || "");
+      vb = String(b[key] || "");
+    }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  $("#tableCount").textContent = `${filtered.length} of ${POs.length}`;
+  $$("#allTable th").forEach(th => th.classList.remove("sort-asc","sort-desc"));
+  const activeTh = document.querySelector(`#allTable th[data-sort="${key}"]`);
+  if (activeTh) activeTh.classList.add(tableSort.dir === "asc" ? "sort-asc" : "sort-desc");
+
+  $("#allTable tbody").innerHTML = filtered.map(p => `
+    <tr onclick="openPoModal('${esc(p.po)}')" style="cursor:pointer;">
+      <td><strong>${esc(p.po)}</strong></td>
+      <td><span class="market-chip ${marketClass(p.market)}">${p.market}</span></td>
+      <td>${p.program ? `<span class="program-chip ${p.program.toLowerCase()}">${p.program}</span>` : '<span style="color:var(--text-dim);">—</span>'}</td>
+      <td>${statusBadges(p)}</td>
+      <td>${esc(p.vendor)}</td>
+      <td>${fmtDateShort(p.cargo)}</td>
+      <td>${fmtDateShort(p.eta)}</td>
+      <td>${fmtDateShort(p.isa)}</td>
+      <td style="color:var(--text-dim);">${esc(p.shipment || "—")}</td>
+      <td style="color:var(--text-muted);max-width:200px;">${esc(p.note || "—")}</td>
+    </tr>`).join("") || `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px;">No matching POs</td></tr>`;
+}
+
+function populateVendorSelects() {
+  const vendors = [...new Set(POs.map(p => p.vendor))].sort();
+  const opts = `<option value="">All</option>` + vendors.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  $("#tl-vendor").innerHTML = opts;
+  $("#tbl-vendor").innerHTML = opts;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SKU LOOKUP
+// ═══════════════════════════════════════════════════════════════════
+function renderSkuSuggestions(query) {
+  const q = query.toLowerCase().trim();
+  if (!q) { $("#sku-suggestions").classList.remove("visible"); return; }
+  const matches = ALL_SKUS.filter(s =>
+    s.sku.toLowerCase().includes(q) || s.item.toLowerCase().includes(q)
+  ).slice(0, 10);
+  if (!matches.length) { $("#sku-suggestions").classList.remove("visible"); return; }
+  $("#sku-suggestions").innerHTML = matches.map(m =>
+    `<div onclick="selectSku('${esc(m.sku)}')"><strong style="color:var(--accent);">${esc(m.sku)}</strong> &nbsp; <span style="color:var(--text-muted);">${esc(m.item.slice(0, 50))}</span></div>`
+  ).join("");
+  $("#sku-suggestions").classList.add("visible");
+}
+window.selectSku = function(sku) {
+  $("#sku-input").value = sku;
+  $("#sku-suggestions").classList.remove("visible");
+  performSkuSearch(sku);
+};
+
+function performSkuSearch(input) {
+  const q = String(input || $("#sku-input").value).trim();
+  const resultsEl = $("#sku-results");
+  if (!q) {
+    resultsEl.innerHTML = `<div class="empty-state"><div class="big">Start typing to search</div><div class="small">Search by SKU code or description</div></div>`;
+    return;
+  }
+
+  // Exact match first, then partial
+  let matchedSkus = [];
+  if (SKU_INDEX[q]) matchedSkus = [q];
+  else {
+    const lowQ = q.toLowerCase();
+    matchedSkus = Object.keys(SKU_INDEX).filter(s => s.toLowerCase().includes(lowQ) || SKU_INDEX[s].some(e => e.item.toLowerCase().includes(lowQ)));
+  }
+
+  if (!matchedSkus.length) {
+    resultsEl.innerHTML = `<div class="empty-state"><div class="big">No matches</div><div class="small">SKU "${esc(q)}" not found on any PO</div></div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = matchedSkus.slice(0, 20).map(sku => {
+    const entries = SKU_INDEX[sku];
+    const desc = entries[0].item;
+    // Enrich with PO info
+    const enriched = entries.map(e => {
+      const po = POs.find(p => p.po === e.po);
+      return { ...e, poData: po };
+    });
+    const totalUnits = enriched.reduce((a, e) => a + (Number(e.units) || 0), 0);
+    const totalCases = enriched.reduce((a, e) => a + (Number(e.cases) || 0), 0);
+    const vendors = [...new Set(enriched.map(e => e.poData?.vendor).filter(Boolean))];
+
+    return `
+      <div class="sku-result-card">
+        <div class="sku-result-header">
+          <div>
+            <h3>${esc(sku)}</h3>
+            <div class="desc">${esc(desc)}</div>
+          </div>
+          <div class="count-badge">${entries.length} shipment${entries.length===1?'':'s'}</div>
+        </div>
+        <div class="sku-summary-row">
+          <div class="stat"><span class="k">Total Units</span><span class="v">${totalUnits.toLocaleString()}</span></div>
+          <div class="stat"><span class="k">Total Cases</span><span class="v">${totalCases.toLocaleString()}</span></div>
+          <div class="stat"><span class="k">Vendors</span><span class="v">${vendors.length}</span></div>
+          <div class="stat"><span class="k">Active POs</span><span class="v">${enriched.filter(e => e.poData && e.poData.status !== "Closed").length}</span></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>PO</th><th>Mkt</th><th>Status</th><th>Vendor</th><th>Cargo Ready</th><th>ETA</th><th>ISA Closure</th><th>Cases</th><th>Units</th></tr></thead>
+            <tbody>
+              ${enriched.sort((a,b) => {
+                const ea = a.poData?.eta?.getTime() || Infinity;
+                const eb = b.poData?.eta?.getTime() || Infinity;
+                return ea - eb;
+              }).map(e => {
+                const p = e.poData;
+                return `<tr onclick="openPoModal('${esc(e.po)}')" style="cursor:pointer;">
+                  <td><strong>${esc(e.po)}</strong></td>
+                  <td>${p ? `<span class="market-chip ${marketClass(p.market)}">${p.market}</span>${programChip(p)}` : '—'}</td>
+                  <td>${p ? statusBadges(p) : '—'}</td>
+                  <td>${esc(p?.vendor || '—')}</td>
+                  <td>${fmtDateShort(p?.cargo)}</td>
+                  <td>${fmtDateShort(p?.eta)}</td>
+                  <td>${fmtDateShort(p?.isa)}</td>
+                  <td>${e.cases || '—'}</td>
+                  <td>${e.units || '—'}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join("");
+
+  if (matchedSkus.length > 20) {
+    resultsEl.innerHTML += `<div style="text-align:center;color:var(--text-muted);font-family:var(--mono);font-size:11px;padding:12px;">Showing first 20 of ${matchedSkus.length} matches. Refine search for more.</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PO DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// MONTH DETAIL POPUP (from chart click)
+// ═══════════════════════════════════════════════════════════════════
+window.openMonthModal = function(monthKey) {
+  if (!monthKey) return;
+  const [y, m] = monthKey.split("-");
+  const monthName = new Date(+y, +m-1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Filter POs to this month + current chart market filter
+  const pool = chartMarket ? POs.filter(p => p.market === chartMarket) : POs;
+  const items = pool.filter(p => {
+    if (!p.eta) return false;
+    return p.eta.getFullYear() === +y && p.eta.getMonth() === +m - 1;
+  }).sort((a,b) => a.eta - b.eta);
+
+  $("#monthModalTitle").textContent = monthName;
+  const marketLabel = chartMarket || "All markets";
+  $("#monthModalSub").textContent = `${items.length} PO${items.length===1?'':'s'} · ${marketLabel}`;
+
+  $("#monthPoTable tbody").innerHTML = items.length ? items.map(p => `
+    <tr onclick="closeMonthModal(); openPoModal('${esc(p.po)}')" style="cursor:pointer;">
+      <td><strong>${esc(p.po)}</strong></td>
+      <td><span class="market-chip ${marketClass(p.market)}">${p.market}</span>${programChip(p)}</td>
+      <td>${statusBadges(p)}</td>
+      <td>${esc(p.vendor)}</td>
+      <td>${fmtDateShort(p.eta)}</td>
+      <td>${fmtDateShort(p.isa)}</td>
+    </tr>`).join("") : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No POs</td></tr>`;
+
+  $("#monthModal").classList.add("visible");
+};
+window.closeMonthModal = function() { $("#monthModal").classList.remove("visible"); };
+
+window.openPoModal = function(poName) {
+  const po = POs.find(p => p.po === poName);
+  if (!po) return;
+  $("#modalPo").textContent = po.po;
+  $("#modalSub").innerHTML = `<span class="market-chip ${marketClass(po.market)}">${po.market}</span>${programChip(po)} &nbsp; ${statusBadges(po)} &nbsp; · &nbsp; ${esc(po.vendor)}`;
+
+  $("#modalDetails").innerHTML = [
+    ["Market", po.market],
+    ["Program", po.program || "—"],
+    ["Cargo Ready", fmtDate(po.cargo)],
+    ["Delivery Window", fmtDate(po.window)],
+    ["ETA", fmtDate(po.eta)],
+    ["ISA Closure", fmtDate(po.isa)],
+    ["Shipment ID", po.shipment || "—"],
+    ["ALo ID", po.alo || "—"],
+    ["Note", po.note || "—"],
+  ].map(([k,v]) => `<div class="item"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
+
+  // SKUs — try fuzzy tab matching
+  const found = findPoTab(po.po);
+  const tab = found ? found.tab : null;
+  const skusBody = $("#modalSkuTable tbody");
+  if (tab && tab.length > 1) {
+    const h = tab[0].map(x => String(x || "").toLowerCase().trim());
+    const si = h.indexOf("sku");
+    const ii = h.findIndex(x => x.includes("item"));
+    const upc = h.indexOf("units per case");
+    const ci = h.indexOf("cases");
+    const qi = h.indexOf("case qty");
+    const ui = h.indexOf("units");
+    const rows = [];
+    if (si >= 0) {
+      for (let r = 1; r < tab.length; r++) {
+        const row = tab[r];
+        if (!row || !row[si]) continue;
+        rows.push(`<tr>
+          <td><strong>${esc(row[si])}</strong></td>
+          <td style="color:var(--text-muted);">${esc(ii>=0 ? row[ii] : '')}</td>
+          <td>${upc>=0 ? esc(row[upc]) : '—'}</td>
+          <td>${ci>=0 ? esc(row[ci]) : (qi>=0 ? esc(row[qi]) : '—')}</td>
+          <td>${ui>=0 ? esc(row[ui]) : '—'}</td>
+        </tr>`);
+      }
+    }
+    const matchedName = found.tabName !== po.po ? ` (tab: ${esc(found.tabName)})` : '';
+    $("#modalSkuCount").textContent = rows.length ? `${rows.length} SKUs${matchedName}` : `Tab found but empty${matchedName}`;
+    skusBody.innerHTML = rows.join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Tab exists but no SKU rows found</td></tr>`;
+  } else {
+    $("#modalSkuCount").textContent = "No matching tab";
+    skusBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">
+      No SKU detail tab found for <strong style="color:var(--text);">${esc(po.po)}</strong>.<br/>
+      <span style="font-size:11px;">Check that a tab named exactly <code style="background:var(--bg-elev-2);padding:2px 6px;border-radius:3px;">${esc(po.po)}</code> exists in your Google Sheet and contains SKU rows.</span>
+    </td></tr>`;
+  }
+
+  $("#poModal").classList.add("visible");
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ALL + EVENTS
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  populateVendorSelects();
+  renderKpis();
+  renderEtaChart();
+  renderVendorBars();
+  renderUpcoming();
+  renderTimeline();
+  renderTable();
+  $("#skuTotalCount").textContent = `${ALL_SKUS.length} unique SKUs across ${POs.length} POs`;
+  performSkuSearch("");  // empty state
+}
+
+// Tab switching
+$("#tabs").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-view]");
+  if (!btn) return;
+  $$("#tabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  $$(".view").forEach(v => v.classList.remove("active"));
+  $("#view-" + btn.dataset.view).classList.add("active");
+});
+
+// Timeline filters
+["#tl-market","#tl-status","#tl-vendor"].forEach(s => {
+  document.addEventListener("change", e => { if (e.target.matches(s)) renderTimeline(); });
+});
+$("#tl-clear").addEventListener("click", () => {
+  $("#tl-market").value = ""; $("#tl-status").value = ""; $("#tl-vendor").value = "";
+  renderTimeline();
+});
+
+// Table filters
+["#tbl-search","#tbl-market","#tbl-status","#tbl-vendor"].forEach(s => {
+  document.addEventListener("input", e => { if (e.target.matches(s)) renderTable(); });
+  document.addEventListener("change", e => { if (e.target.matches(s)) renderTable(); });
+});
+$("#tbl-clear").addEventListener("click", () => {
+  $("#tbl-search").value = ""; $("#tbl-market").value = ""; $("#tbl-status").value = ""; $("#tbl-vendor").value = "";
+  renderTable();
+});
+
+// Table sort
+$$("#allTable th[data-sort]").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.sort;
+    if (tableSort.key === k) tableSort.dir = tableSort.dir === "asc" ? "desc" : "asc";
+    else { tableSort.key = k; tableSort.dir = "asc"; }
+    renderTable();
+  });
+});
+
+// SKU search
+$("#sku-input").addEventListener("input", e => renderSkuSuggestions(e.target.value));
+$("#sku-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") { $("#sku-suggestions").classList.remove("visible"); performSkuSearch(); }
+  if (e.key === "Escape") $("#sku-suggestions").classList.remove("visible");
+});
+$("#sku-search-btn").addEventListener("click", () => performSkuSearch());
+document.addEventListener("click", e => {
+  if (!e.target.closest(".sku-search-box") && !e.target.closest("#sku-suggestions")) {
+    $("#sku-suggestions").classList.remove("visible");
+  }
+});
+
+// Modal
+$("#modalClose").addEventListener("click", () => $("#poModal").classList.remove("visible"));
+$("#poModal").addEventListener("click", e => {
+  if (e.target.id === "poModal") $("#poModal").classList.remove("visible");
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    $("#poModal").classList.remove("visible");
+    $("#monthModal").classList.remove("visible");
+  }
+});
+
+// Month modal close
+$("#monthModalClose").addEventListener("click", closeMonthModal);
+$("#monthModal").addEventListener("click", e => {
+  if (e.target.id === "monthModal") closeMonthModal();
+});
+
+// Chart market filter chips
+$("#chartFilters").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-mkt]");
+  if (!btn) return;
+  $$("#chartFilters button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  chartMarket = btn.dataset.mkt;
+  renderEtaChart();
+});
+
+// Refresh
+$("#refreshBtn").addEventListener("click", e => { e.preventDefault(); loadData(); });
+
+// Initial load
+loadData();
+</script>
+</body>
+</html>
